@@ -17,6 +17,7 @@ set (sources
 	"BmpPaletteSampleValue.cc"
 	"BmpRGBSampleValue.cc"
 	"BmpSampleValue.cc"
+	"BruteCracker.cc"
 	"Cracker.cc"
 	"CvrStgFile.cc"
 	"DFSAPHeuristic.cc"
@@ -60,6 +61,7 @@ set (sources
 	"WavFormatChunk.cc"
 	"WavPCMSampleValue.cc"
 	"WKSConstructionHeuristic.cc"
+	"seed-x86_64.S"
 )
 
 file(GLOB headers

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(stegseek VERSION 0.6)
+project(stegseek VERSION 0.6 LANGUAGES ASM CXX)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # Update if necessary

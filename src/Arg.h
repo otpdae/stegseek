@@ -53,6 +53,7 @@ enum COMMAND {
     EXTRACT,
     CRACK,
     SEED_CRACK,
+    BRUTE_CRACK,
     INFO,
     ENCINFO,
     SHOWVERSION,

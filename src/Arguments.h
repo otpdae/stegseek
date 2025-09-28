@@ -90,6 +90,9 @@ class Arguments {
     ArgUInt DebugLevel;
     ArgUInt GmlGraphRecDepth;
     ArgUInt GmlStartVertex;
+    ArgString BruteAlphabet;
+    ArgInt BruteLength;
+    ArgUInt BruteSeed;
 
     std::string getPassphrase(bool doublecheck = false);
 
@@ -164,6 +167,8 @@ class Arguments {
     bool parse_Threading(ArgIt &curarg);
     bool parse_Verbosity(ArgIt &curarg);
     bool parse_Debug(ArgIt &curarg);
+    bool parse_BruteLength(ArgIt &curarg);
+    bool parse_BruteSeed(ArgIt &curarg);
 
     void setDefaults(void);
 

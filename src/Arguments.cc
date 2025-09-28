@@ -121,6 +121,8 @@ void Arguments::parse_Command(ArgIt &curarg) {
         Command.setValue(EXTRACT);
     } else if (CommandString == "--seed") {
         Command.setValue(SEED_CRACK);
+    } else if (CommandString == "--brute") {
+        Command.setValue(BRUTE_CRACK);
     } else if (CommandString == "--info") {
         Command.setValue(INFO);
     } else if (CommandString == "--encinfo") {
@@ -151,6 +153,7 @@ void Arguments::parse_Positional(std::vector<std::string> positionalArgs) {
                 posPtr[i]->setValue(positionalArgs[i]);
         }
     } break;
+    case BRUTE_CRACK:
     case SEED_CRACK: {
         // Extract this file into that file
         ArgString *posPtr[]{&StgFn, &ExtFn};
@@ -207,13 +210,13 @@ std::vector<std::string> Arguments::parse_Arguments(ArgIt &curarg) {
             std::vector<COMMAND> compatible{EMBED};
             parse_Generic_String(curarg, compatible, &EmbFn);
         } else if (*curarg == "-xf" || *curarg == "--extractfile") {
-            std::vector<COMMAND> compatible{EXTRACT, CRACK, SEED_CRACK};
+            std::vector<COMMAND> compatible{EXTRACT, CRACK, SEED_CRACK, BRUTE_CRACK};
             parse_Generic_String(curarg, compatible, &ExtFn);
         } else if (*curarg == "-cf" || *curarg == "--coverfile") {
             std::vector<COMMAND> compatible{EMBED};
             parse_Generic_String(curarg, compatible, &CvrFn);
         } else if (*curarg == "-sf" || *curarg == "--stegofile") {
-            std::vector<COMMAND> compatible{EMBED, EXTRACT, CRACK, SEED_CRACK};
+            std::vector<COMMAND> compatible{EMBED, EXTRACT, CRACK, SEED_CRACK, BRUTE_CRACK};
             parse_Generic_String(curarg, compatible, &StgFn);
         } else if (*curarg == "-wl" || *curarg == "--wordlist") {
             std::vector<COMMAND> compatible{CRACK};
@@ -221,6 +224,9 @@ std::vector<std::string> Arguments::parse_Arguments(ArgIt &curarg) {
         } else if (*curarg == "-p" || *curarg == "--passphrase") {
             std::vector<COMMAND> compatible{};
             parse_Generic_String(curarg, compatible, &Passphrase);
+        } else if (*curarg == "-ba" || *curarg == "--brutealphabet") {
+            std::vector<COMMAND> compatible{BRUTE_CRACK};
+            parse_Generic_String(curarg, compatible, &BruteAlphabet);
         } else if (*curarg == "-K" || *curarg == "--nochecksum") {
             std::vector<COMMAND> compatible{};
             parse_Generic_Bool(curarg, compatible, &Checksum, false);
@@ -259,6 +265,10 @@ std::vector<std::string> Arguments::parse_Arguments(ArgIt &curarg) {
                 continue;
             if (parse_Debug(curarg))
                 continue; // TODO - rename Debug -> Undocumented
+            if (parse_BruteLength(curarg))
+                continue;
+            if (parse_BruteSeed(curarg))
+                continue;
 
             throw ArgError(_("unknown argument \"%s\"."), curarg->c_str());
         }
@@ -337,10 +347,10 @@ bool Arguments::parse_Threading(ArgIt &curarg) {
     bool found = false;
 
     if (*curarg == "-t" || *curarg == "--threads") {
-        if (Command.getValue() != CRACK && Command.getValue() != SEED_CRACK) {
-            throw ArgError(_("the argument \"%s\" can only be used with the \"%s\" "
+        if (Command.getValue() != CRACK && Command.getValue() != SEED_CRACK && Command.getValue() != BRUTE_CRACK) {
+            throw ArgError(_("the argument \"%s\" can only be used with the \"%s\", \"%s\", "
                              "and \"%s\" commands."),
-                           curarg->c_str(), "crack", "seed");
+                           curarg->c_str(), "crack", "seed", "brute");
         }
 
         if (Threads.is_set()) {
@@ -588,10 +598,10 @@ bool Arguments::parse_Verbosity(ArgIt &curarg) {
         found = true;
 
         if (Command.getValue() != EMBED && Command.getValue() != EXTRACT &&
-            Command.getValue() != CRACK && Command.getValue() != SEED_CRACK) {
+            Command.getValue() != CRACK && Command.getValue() != SEED_CRACK && Command.getValue() != BRUTE_CRACK) {
             throw ArgError(_("the argument \"%s\" can only be used with the \"%s\", "
-                             "\"%s\", \"%s\", and \"%s\" commands."),
-                           curarg->c_str(), "embed", "extract", "crack", "seed");
+                             "\"%s\", \"%s\", \"%s\", and \"%s\" commands."),
+                           curarg->c_str(), "embed", "extract", "crack", "seed", "brute");
         }
 
         if (Verbosity.is_set()) {
@@ -606,11 +616,11 @@ bool Arguments::parse_Verbosity(ArgIt &curarg) {
         found = true;
 
         if (Command.getValue() != EMBED && Command.getValue() != EXTRACT &&
-            Command.getValue() != CRACK && Command.getValue() != SEED_CRACK &&
+            Command.getValue() != CRACK && Command.getValue() != SEED_CRACK && Command.getValue() != BRUTE_CRACK &&
             Command.getValue() != SHOWHELP && Command.getValue() != SHOWVERSION) {
             throw ArgError(_("the argument \"%s\" can only be used with the \"%s\", "
-                             "\"%s\", \"%s\", \"%s\", \"%s\" and \"%s\" commands."),
-                           curarg->c_str(), "embed", "extract", "crack", "seed", "version", "help");
+                             "\"%s\", \"%s\", \"%s\", \"%s\", \"%s\" and \"%s\" commands."),
+                           curarg->c_str(), "embed", "extract", "crack", "seed", "brute", "version", "help");
         }
 
         if (Verbosity.is_set()) {
@@ -706,6 +716,71 @@ bool Arguments::parse_Debug(ArgIt &curarg) {
     return found;
 }
 
+bool Arguments::parse_BruteLength(ArgIt &curarg) {
+    bool found = false;
+
+    if (*curarg == "-bl" || *curarg == "--brutelength") {
+        if (Command.getValue() != BRUTE_CRACK) {
+            throw ArgError(_("the argument \"%s\" can only be used with the \"%s\" command."),
+                           curarg->c_str(), "brute");
+        }
+
+        if (BruteLength.is_set()) {
+            throw ArgError(_("the brute length argument can be used only once."));
+        }
+
+        if (++curarg == TheArguments.end()) {
+            throw ArgError(_("the \"%s\" argument must be followed by the "
+                             "passphrase length."),
+                           (curarg - 1)->c_str());
+        }
+
+        int tmp = 0;
+        sscanf(curarg->c_str(), "%d", &tmp);
+        if (tmp < 1 || tmp > 15) {
+            throw ArgError(_("the brute length must be between 1 and 15 inclusive."));
+        }
+        BruteLength.setValue(tmp);
+
+        found = true;
+        curarg++;
+    }
+
+    return found;
+}
+
+bool Arguments::parse_BruteSeed(ArgIt &curarg) {
+    bool found = false;
+
+    if (*curarg == "-bs" || *curarg == "--bruteseed") {
+        if (Command.getValue() != BRUTE_CRACK) {
+            throw ArgError(_("the argument \"%s\" can only be used with the \"%s\" command."),
+                           curarg->c_str(), "brute");
+        }
+
+        if (BruteSeed.is_set()) {
+            throw ArgError(_("the brute seed argument can be used only once."));
+        }
+
+        if (++curarg == TheArguments.end()) {
+            throw ArgError(_("the \"%s\" argument must be followed by a "
+                             "hexadecimal integer."),
+                           (curarg - 1)->c_str());
+        }
+
+        unsigned int tmp = 0;
+        if (sscanf(curarg->c_str(), "%x", &tmp) != 1) {
+            throw ArgError(_("the brute seed must be a hexadecimal integer."));
+        }
+        BruteSeed.setValue(tmp);
+
+        found = true;
+        curarg++;
+    }
+
+    return found;
+}
+
 std::string Arguments::getPassphrase(bool doublecheck) {
     int c = EOF;
 
@@ -786,6 +861,9 @@ void Arguments::setDefaults(void) {
     DebugLevel.setValue(Default_DebugLevel, false);
     GmlGraphRecDepth.setValue(Default_GmlGraphRecDepth, false);
     GmlStartVertex.setValue(Default_GmlStartVertex, false);
+    BruteAlphabet.setValue("abcdefghijklmnopqrstuvwxyz0123456789", false);
+    BruteLength.setValue(1, false);
+    BruteSeed.setValue(0U, false);
 }
 
 const EncryptionAlgorithm Arguments::Default_EncAlgo =

@@ -25,6 +25,7 @@
 #include <iostream>
 #include <vector>
 
+#include "BruteCracker.h"
 #include "CvrStgFile.h"
 #include "EmbData.h"
 #include "Embedder.h"
@@ -119,6 +120,16 @@ void Session::run() {
         }
         SeedCracker scr;
         scr.crack();
+        break;
+    }
+
+    case BRUTE_CRACK: {
+        // Don't print a banner in accessible mode
+        if (!Args.Accessible.getValue()) {
+            printVersion();
+        }
+        BruteCracker bcr;
+        bcr.crack();
         break;
     }
 
@@ -270,9 +281,16 @@ void Session::printHelp() {
              "                         In case the file was encoded without "
              "encryption, this mode will\n"
              "                         even recover the embedded file.\n"
+             " --brute                 Crack a stego file by attempting all "
+             "combinations of specific\n"
+             "                         characters of a specific length for "
+             "the passphrase.\n"
+             "                         This requires a seed previously found "
+             "with --seed.\n"
              "Positional arguments:\n"
              " --crack [stegofile.jpg] [wordlist.txt] [output.txt]\n"
              " --seed  [stegofile.jpg] [output.txt]\n"
+             " --brute [stegofile.jpg] [output.txt]\n"
              "\n"
              "Keyword arguments:\n"
              " -sf, --stegofile        select stego file\n"
@@ -291,6 +309,10 @@ void Session::printHelp() {
              "                         (A stego file might contain multiple embedded files)\n"
              " -a, --accessible        simplify the output to be more screen reader "
              "friendly\n"
+             " -ba, --brutealphabet    set the character set for brute mode, "
+             "e.g. 0123456789abcdef\n"
+             " -bl, --brutelength      set the passphrase length for brute mode\n"
+             " -bs, --bruteseed        set the known seed for brute mode\n"
              "\n"));
 
     if (Args.Verbosity.getValue() == VERBOSE) {
